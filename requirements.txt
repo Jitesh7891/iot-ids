@@ -1,0 +1,5 @@
+ucimlrepo
+tensorflow
+scikit-learn
+pandas
+python-aiml
