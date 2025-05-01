@@ -22,18 +22,25 @@ errors = np.mean((X_scaled - recon)**2, axis=1)
 mu, sigma = errors.mean(), errors.std()
 threshold = mu + 3 * sigma
 
-# 6️⃣ Print anomaly flags and count
+# 6️⃣ Write anomaly flags and count to a file
 anomaly_count = 0
 normal_count = 0
 
-for i, err in enumerate(errors):
-    flag = 'ANOMALY' if err > threshold else 'normal'
-    print(f"Sample {i:3d}: {flag:8s} (MSE={err:.5f})")
-    if flag == 'ANOMALY':
-        anomaly_count += 1
-    else:
-        normal_count += 1
+with open('anomaly_report.txt', 'w') as f:
+    for i, err in enumerate(errors):
+        flag = 'ANOMALY' if err > threshold else 'normal'
+        line = f"Sample {i:3d}: {flag:8s} (MSE={err:.5f})\n"
+        f.write(line)
+        if flag == 'ANOMALY':
+            anomaly_count += 1
+        else:
+            normal_count += 1
 
-print(f"\n✅ Total: {len(errors)} samples")
-print(f"🔴 Anomalies: {anomaly_count}")
-print(f"🟢 Normal:    {normal_count}")
+    # summary
+    f.write('\n')
+    f.write(f"Total: {len(errors)} samples\n")
+    f.write(f"Anomalies: {anomaly_count}\n")
+    f.write(f"Normal:    {normal_count}\n")
+
+
+print("Anomaly report written to anomaly_report.txt")

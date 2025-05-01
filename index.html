@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anomaly Detection Report</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2a4365;
+      font-weight: 600;
+    }
+    .dashboard {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .filter-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .filter-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #e2e8f0;
+      color: #4a5568;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .filter-btn:hover {
+      background: #cbd5e0;
+    }
+    .filter-btn.active {
+      background: #4299e1;
+      color: white;
+    }
+    .table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+    th, td {
+      padding: 14px 15px;
+      text-align: left;
+    }
+    th {
+      background: #3182ce;
+      color: #fff;
+      position: sticky;
+      top: 0;
+      font-weight: 500;
+    }
+    tr:nth-child(even) td {
+      background: #f7fafc;
+    }
+    tr {
+      transition: transform 0.1s ease;
+    }
+    tr:hover {
+      background: #ebf8ff;
+    }
+    tr.anomaly td {
+      background: #fed7d7;
+      color: #c53030;
+      font-weight: 500;
+    }
+    tr.anomaly:hover td {
+      background: #feb2b2;
+    }
+    .summary {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      flex: 1;
+      min-width: 200px;
+      background: #fff;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 0.9em;
+      color: #718096;
+      margin-bottom: 5px;
+    }
+    .stat-value {
+      font-size: 1.8em;
+      font-weight: 600;
+      color: #2d3748;
+    }
+    .normal-stat .stat-value {
+      color: #2b6cb0;
+    }
+    .anomaly-stat .stat-value {
+      color: #c53030;
+    }
+    @media (max-width: 768px) {
+      .filter-buttons {
+        flex-direction: column;
+      }
+      .summary {
+        flex-direction: column;
+      }
+    }
+    .no-results {
+      text-align: center;
+      padding: 30px;
+      color: #718096;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="dashboard">
+      <h1>Anomaly Detection Report</h1>
+      
+      <div class="summary">
+        <div class="stat-card">
+          <div class="stat-label">TOTAL SAMPLES</div>
+          <div class="stat-value" id="total-count">0</div>
+        </div>
+        <div class="stat-card normal-stat">
+          <div class="stat-label">NORMAL</div>
+          <div class="stat-value" id="normal-count">0</div>
+        </div>
+        <div class="stat-card anomaly-stat">
+          <div class="stat-label">ANOMALIES</div>
+          <div class="stat-value" id="anomaly-count">0</div>
+        </div>
+      </div>
+      
+      <div class="filter-buttons">
+        <button class="filter-btn active" data-filter="all">All Devices</button>
+        <button class="filter-btn" data-filter="anomaly">Anomalies Only</button>
+        <button class="filter-btn" data-filter="normal">Normal Only</button>
+      </div>
+      
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Sample</th>
+              <th>Status</th>
+              <th>MSE</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="no-results" style="display: none;">No matching samples found</div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Fetch the plain-text anomaly report
+    fetch('anomaly_report.txt')
+      .then(response => response.text())
+      .then(text => {
+        const lines = text.split('\n').filter(line => line.trim().startsWith('Sample'));
+        const data = lines.map(line => {
+          const match = /Sample\s*(\d+):\s*(\w+)\s*\(MSE=([0-9.]+)\)/.exec(line);
+          return match ? {
+            sample: parseInt(match[1], 10),
+            status: match[2],
+            mse: parseFloat(match[3])
+          } : null;
+        }).filter(item => item);
+
+        // Populate table with data
+        function renderTable(filter = 'all') {
+          const tbody = document.querySelector('tbody');
+          tbody.innerHTML = '';
+          
+          const filteredData = filter === 'all' 
+            ? data 
+            : data.filter(item => 
+                filter === 'anomaly' ? item.status === 'ANOMALY' : item.status === 'normal'
+              );
+              
+          if (filteredData.length === 0) {
+            document.querySelector('.no-results').style.display = 'block';
+            document.querySelector('.table-container table').style.display = 'none';
+          } else {
+            document.querySelector('.no-results').style.display = 'none';
+            document.querySelector('.table-container table').style.display = 'table';
+            
+            filteredData.forEach(item => {
+              const tr = document.createElement('tr');
+              if (item.status === 'ANOMALY') tr.classList.add('anomaly');
+              tr.innerHTML = `
+                <td>${item.sample}</td>
+                <td>${item.status}</td>
+                <td>${item.mse.toFixed(5)}</td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
+        }
+        
+        // Update summary stats
+        document.getElementById('total-count').textContent = data.length;
+        document.getElementById('anomaly-count').textContent = data.filter(d => d.status === 'ANOMALY').length;
+        document.getElementById('normal-count').textContent = data.filter(d => d.status === 'normal').length;
+        
+        // Initial render
+        renderTable();
+        
+        // Set up filter buttons
+        const buttons = document.querySelectorAll('.filter-btn');
+        buttons.forEach(button => {
+          button.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            button.classList.add('active');
+            renderTable(button.getAttribute('data-filter'));
+          });
+        });
+      })
+      .catch(error => {
+        console.error('Error loading data:', error);
+        document.querySelector('.table-container').innerHTML = `
+          <div class="error-message" style="padding: 20px; text-align: center; color: #e53e3e;">
+            Error loading data. Please check the console for details.
+          </div>
+        `;
+      });
+  </script>
+</body>
+</html>
